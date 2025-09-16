@@ -9,28 +9,30 @@
   <style>
     body { background: #f8f9fa; min-height:100vh; display:flex; align-items:center; }
     .game-card { max-width:540px; margin:auto; border-radius:12px; }
-    .option-btn { width:100%; margin-bottom:10px; text-align:center; }
-    .table-btn { width:48px; }
-    .small-note { font-size:0.9rem; color:#666; }
+    #question { font-size: 1.6rem; font-weight: 600; }
+    .option-btn { width:100%; margin-bottom:12px; font-size:1.3rem; padding:12px; }
+    .table-btn { width:56px; font-size:1.2rem; }
+    .small-note { font-size:1rem; color:#666; }
+    #score { font-size:1.4rem; font-weight:bold; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="card game-card shadow-sm p-4">
       <div class="text-center mb-3">
-        <h3 class="mb-0">Math Table Game</h3>
+        <h2 class="mb-0">🎲 Math Table Game</h2>
         <div class="small-note">Pick a table (1–9) and answer until you miss one.</div>
       </div>
 
       <!-- Table selection -->
       <div id="table-selection" class="text-center mb-3">
         <p class="mb-1">Select a multiplication table:</p>
-        <div id="table-buttons-container" class="d-flex flex-wrap justify-content-center gap-1 mb-2"></div>
+        <div id="table-buttons-container" class="d-flex flex-wrap justify-content-center gap-2 mb-2"></div>
       </div>
 
       <!-- Quiz section -->
       <div id="quiz-section" class="d-none">
-        <h5 id="question" class="mb-3"></h5>
+        <h5 id="question" class="mb-4"></h5>
 
         <div id="options" class="mb-3"></div>
 
@@ -40,10 +42,10 @@
         </div>
 
         <!-- Game over message (in-page) -->
-        <div id="game-over" class="alert alert-warning mt-3 d-none" role="alert" aria-live="polite"></div>
+        <div id="game-over" class="alert alert-warning mt-4 d-none" role="alert" aria-live="polite"></div>
 
-        <div class="mt-2 d-flex gap-2">
-          <button id="play-again-btn" class="btn btn-primary flex-grow-1 d-none">Play Again (same table)</button>
+        <div class="mt-3 d-flex gap-2">
+          <button id="play-again-btn" class="btn btn-primary flex-grow-1 d-none">Play Again</button>
           <button id="change-table-btn" class="btn btn-outline-danger flex-grow-1 d-none">Change Table</button>
         </div>
       </div>
@@ -52,7 +54,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // DOM references
+  // DOM refs
   const tableButtonsContainer = document.getElementById('table-buttons-container');
   const tableSelection = document.getElementById('table-selection');
   const quizSection = document.getElementById('quiz-section');
@@ -64,12 +66,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const changeTableBtn = document.getElementById('change-table-btn');
   const currentTableEl = document.getElementById('current-table');
 
-  // game state
+  // sounds (base64 small mp3s)
+  const soundCorrect = new Audio("data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACcQCAAwACAAACcQAAAgAAAC4AAABhY2NkAA...");
+  const soundWrong   = new Audio("data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACcQCAAwACAAACcQAAAgAAAC4AAABhY2NkAA...");
+
+  // state
   let selectedTable = null;
   let score = 0;
   let correctAnswer = null;
 
-  // create table buttons 1..9
+  // create table buttons
   for (let i = 1; i <= 9; i++) {
     const b = document.createElement('button');
     b.className = 'btn btn-outline-primary table-btn';
@@ -78,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tableButtonsContainer.appendChild(b);
   }
 
-  // attach listeners to table buttons (event delegation)
+  // listen for table selection
   tableButtonsContainer.addEventListener('click', (e) => {
     const btn = e.target.closest('.table-btn');
     if (!btn) return;
@@ -86,7 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
     startGame();
   });
 
-  // start game (for the selectedTable)
   function startGame() {
     score = 0;
     scoreEl.textContent = score;
@@ -99,91 +104,70 @@ document.addEventListener('DOMContentLoaded', () => {
     generateQuestion();
   }
 
-  // generate a new question
   function generateQuestion() {
-    // multiplier between 1 and 10 (you can change range)
     const multiplier = Math.floor(Math.random() * 10) + 1;
     correctAnswer = selectedTable * multiplier;
-    questionEl.textContent = `What is ${selectedTable} × ${multiplier}?`;
+    questionEl.textContent = `❓ What is ${selectedTable} × ${multiplier}?`;
 
-    // make 4 unique options (including correct)
     const options = new Set([correctAnswer]);
     const maxVal = selectedTable * 12 + 10;
     while (options.size < 4) {
-      // create plausible distractors
       const distractor = Math.max(1, correctAnswer + (Math.floor(Math.random() * 21) - 10));
       options.add(distractor);
     }
 
-    // shuffle and render
     const optionArr = Array.from(options).sort(() => Math.random() - 0.5);
     optionsEl.innerHTML = '';
     optionArr.forEach(opt => {
       const btn = document.createElement('button');
       btn.className = 'btn btn-outline-success option-btn';
       btn.textContent = opt;
-      // pass the button itself to allow styling on wrong
       btn.addEventListener('click', () => checkAnswer(Number(opt), btn));
       optionsEl.appendChild(btn);
     });
   }
 
-  // handle answer
   function checkAnswer(selected, clickedBtn) {
     if (selected === correctAnswer) {
-      // correct: increment and continue
       score++;
       scoreEl.textContent = score;
+      soundCorrect.currentTime = 0; soundCorrect.play();
       generateQuestion();
       return;
     }
 
-    // wrong: reveal correct option, style buttons, show game over message + restart options
+    // Wrong
+    soundWrong.currentTime = 0; soundWrong.play();
+
     const allBtns = optionsEl.querySelectorAll('button');
     allBtns.forEach(b => {
       b.disabled = true;
       const val = Number(b.textContent);
-      b.classList.remove('btn-outline-success', 'option-btn');
-      b.classList.add('btn'); // ensure base class present
-
+      b.classList.remove('btn-outline-success');
       if (val === correctAnswer) {
-        b.classList.add('btn-success'); // correct
+        b.classList.add('btn-success');
       } else if (b === clickedBtn) {
-        b.classList.add('btn-danger');  // the one the user clicked (wrong)
+        b.classList.add('btn-danger');
       } else {
-        b.classList.add('btn-secondary'); // other wrong choices
+        b.classList.add('btn-secondary');
       }
     });
 
-    // Show the in-page Game Over panel
     gameOverDiv.innerHTML = `
-      <h6 class="mb-1">Game Over</h6>
+      <h5>💥 Game Over!</h5>
       <div>Your final score: <strong>${score}</strong></div>
-      <div class="small-note mt-1">Correct answer was: <strong>${correctAnswer}</strong></div>
+      <div class="small-note">Correct answer was: <strong>${correctAnswer}</strong></div>
     `;
     gameOverDiv.classList.remove('d-none');
-
-    // show restart controls
-    playAgainBtn.classList.remove('d-none');      // restart same table
-    changeTableBtn.classList.remove('d-none');    // go back to choose table
+    playAgainBtn.classList.remove('d-none');
+    changeTableBtn.classList.remove('d-none');
   }
 
-  // Play again (same table)
-  playAgainBtn.addEventListener('click', () => {
-    score = 0;
-    scoreEl.textContent = score;
-    gameOverDiv.classList.add('d-none');
-    playAgainBtn.classList.add('d-none');
-    changeTableBtn.classList.add('d-none');
-    generateQuestion();
-  });
-
-  // Change table -> back to selection
+  playAgainBtn.addEventListener('click', startGame);
   changeTableBtn.addEventListener('click', () => {
     selectedTable = null;
     tableSelection.classList.remove('d-none');
     quizSection.classList.add('d-none');
-    gameOverDiv.classList.add('d-none');
   });
 });
 </script>
