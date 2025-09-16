@@ -66,9 +66,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const changeTableBtn = document.getElementById('change-table-btn');
   const currentTableEl = document.getElementById('current-table');
 
-  // sounds (base64 small mp3s)
-  const soundCorrect = new Audio("data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACcQCAAwACAAACcQAAAgAAAC4AAABhY2NkAA...");
-  const soundWrong   = new Audio("data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAACcQCAAwACAAACcQAAAgAAAC4AAABhY2NkAA...");
+  // Web Audio API
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function playBeep(freq, duration = 200) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration/1000);
+    osc.stop(audioCtx.currentTime + duration/1000);
+  }
 
   // state
   let selectedTable = null;
@@ -110,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
     questionEl.textContent = `❓ What is ${selectedTable} × ${multiplier}?`;
 
     const options = new Set([correctAnswer]);
-    const maxVal = selectedTable * 12 + 10;
     while (options.size < 4) {
       const distractor = Math.max(1, correctAnswer + (Math.floor(Math.random() * 21) - 10));
       options.add(distractor);
@@ -131,13 +141,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selected === correctAnswer) {
       score++;
       scoreEl.textContent = score;
-      soundCorrect.currentTime = 0; soundCorrect.play();
+      playBeep(800, 200); // high beep for correct
       generateQuestion();
       return;
     }
 
-    // Wrong
-    soundWrong.currentTime = 0; soundWrong.play();
+    playBeep(200, 400); // low buzz for wrong
 
     const allBtns = optionsEl.querySelectorAll('button');
     allBtns.forEach(b => {
